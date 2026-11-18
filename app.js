@@ -8,18 +8,18 @@
   const UF_NOME = { MA: "Maranhão", PI: "Piauí" };
 
   // ---------- Situação (mesma regra do painel geral) ----------
-  const SIT_VAR = { "Garantido": "--s-garantida", "No caminho": "--s-alcancavel", "Atenção pendências": "--s-depende", "Dificuldade na entrega": "--s-inviavel", "Atenção máxima": "--s-critico", "Atenção": "--s-risco" };
-  const SIT_IC = { "Garantido": "✓", "No caminho": "◷", "Atenção pendências": "⚠", "Dificuldade na entrega": "✕", "Atenção máxima": "‼", "Atenção": "!" };
+  const SIT_VAR = { "Garantido": "--s-garantida", "No caminho": "--s-alcancavel", "Atenção pendências": "--s-depende", "Dificuldades na entrega": "--s-inviavel", "Atenção máxima": "--s-critico", "Atenção": "--s-risco" };
+  const SIT_IC = { "Garantido": "✓", "No caminho": "◷", "Atenção pendências": "⚠", "Dificuldades na entrega": "✕", "Atenção máxima": "‼", "Atenção": "!" };
   const chip = (s) => el("span", { class: "chip" }, el("span", { class: "ic", style: `background:var(${SIT_VAR[s]})`, "aria-hidden": "true" }, SIT_IC[s]), s);
   const folga = (s) => s[1] + 2 * (s[3] + s[4]) - s[2];
   function riscoArea(s, a) {
-    if (!s || s[0] === "Dificuldade na entrega" || s[0] === "Garantido") return null;
+    if (!s || s[0] === "Dificuldades na entrega" || s[0] === "Garantido") return null;
     const lim = (AREAS[a] || {}).max_zeros, f = folga(s), zero = lim != null && lim > 0 && s[5] === lim;
     if (f <= 0) return "critico";
     return f <= 1 || zero ? "risco" : null;
   }
   const sitArea = (s, a) => { const r = riscoArea(s, a); return r ? (r === "critico" ? "Atenção máxima" : "Atenção") : s[0]; };
-  const sitMunicipio = (m) => { if (m.sg === "Dificuldade na entrega") return m.sg; const rs = Object.entries(m.s).map(([a, s]) => riscoArea(s, a)).filter(Boolean); return rs.includes("critico") ? "Atenção máxima" : rs.length ? "Atenção" : m.sg; };
+  const sitMunicipio = (m) => { if (m.sg === "Dificuldades na entrega") return m.sg; const rs = Object.entries(m.s).map(([a, s]) => riscoArea(s, a)).filter(Boolean); return rs.includes("critico") ? "Atenção máxima" : rs.length ? "Atenção" : m.sg; };
 
   // ---------- Duas próximas janelas de entrega: as duas próximas datas de prazo a partir de hoje (gestor, 17/11/2026) ----------
   const JANELAS = [...new Set(D.entregas.map((e) => e.iso).filter((iso) => iso && iso >= HOJE))].sort().slice(0, 2);
@@ -133,7 +133,7 @@
       <div class="chips">${resumo}</div>
       <h2 class="feitas">✓ Entregas feitas (${feitas.length})</h2>${feitas.length ? `<table class="feitas"><colgroup><col class="c1"><col class="c2"><col><col class="c4">${comData ? '<col class="c5">' : ""}</colgroup><thead><tr><th>Prazo</th><th>Área</th><th>Atividade</th><th>Registro</th>${comData ? "<th>Entregue em</th>" : ""}</tr></thead><tbody>${feitas.map(linhaFeita).join("")}</tbody></table>` : "<p>Nenhuma entrega registrada até agora.</p>"}
       <h2 class="prox">→ Próximas entregas (${proxJan.length})</h2><p class="resumo">Atividades das duas próximas janelas de entrega${JANELAS.length ? " (" + JANELAS.map(fmtData).join(" e ") + ")" : ""}, organizadas por data.</p>${porData(proxJan) || "<p class=\"resumo\">Não há entregas nas próximas janelas.</p>"}
-      <h2 class="dif">✕ Dificuldade na entrega (${dificuldade.length})</h2><p class="resumo">Prazo encerrado e entrega não identificada: registro negativo na planilha (tarefa zerada).</p>${tabelaVencidas(dificuldade, "Nenhuma entrega com dificuldade.")}
+      <h2 class="dif">✕ Dificuldades na entrega (${dificuldade.length})</h2><p class="resumo">Prazo encerrado e entrega não identificada: registro negativo na planilha (tarefa zerada).</p>${tabelaVencidas(dificuldade, "Nenhuma entrega com dificuldade.")}
       <h2 class="pend">! Pendentes (${pendentes.length})</h2><p class="resumo">Prazo encerrado, ainda sem registro definitivo na planilha (em análise, faltando algo ou sem registro). Ainda podem pontuar.</p>${tabelaVencidas(pendentes, "Nenhuma pendência.")}
       <h2 class="fut">◷ Prazo futuro (${futuro.length})</h2><p class="resumo">Atividades com prazo mais adiante, organizadas por data.</p>${porData(futuro) || "<p class=\"resumo\">Não há outras entregas a vencer.</p>"}
       <p class="aviso">${hesc(D.meta.rodape)}</p></main></body></html>`;
