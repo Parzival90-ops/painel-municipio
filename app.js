@@ -27,7 +27,7 @@
   // ---------- As cores ----------
   const COR = {
     verde: { nome: "Entregue", ic: "✓", d: "registrada como entregue (no prazo ou com atraso)" },
-    amarelo: { nome: "Pendente", ic: "!", d: "prazo encerrado, entrega ainda sem registro definitivo" },
+    amarelo: { nome: "Aguardando", ic: "!", d: "prazo encerrado, entrega ainda sem registro definitivo" },
     vermelho: { nome: "Entrega não identificada", ic: "✕", d: "prazo encerrado e registro negativo: tarefa zerada" },
     azul: { nome: "No prazo, em andamento", ic: "…", d: "prazo aberto e o município já informou o que falta" },
     azulclaro: { nome: "Próxima entrega", ic: "→", d: "vence numa das duas próximas janelas de entrega, ainda sem dado" },
@@ -134,7 +134,7 @@
       <h2 class="feitas">✓ Entregas feitas (${feitas.length})</h2>${feitas.length ? `<table class="feitas"><colgroup><col class="c1"><col class="c2"><col><col class="c4">${comData ? '<col class="c5">' : ""}</colgroup><thead><tr><th>Prazo</th><th>Área</th><th>Atividade</th><th>Registro</th>${comData ? "<th>Entregue em</th>" : ""}</tr></thead><tbody>${feitas.map(linhaFeita).join("")}</tbody></table>` : "<p>Nenhuma entrega registrada até agora.</p>"}
       <h2 class="prox">→ Próximas entregas (${proxJan.length})</h2><p class="resumo">Atividades das duas próximas janelas de entrega${JANELAS.length ? " (" + JANELAS.map(fmtData).join(" e ") + ")" : ""}, organizadas por data.</p>${porData(proxJan) || "<p class=\"resumo\">Não há entregas nas próximas janelas.</p>"}
       <h2 class="dif">✕ Dificuldades na entrega (${dificuldade.length})</h2><p class="resumo">Prazo encerrado e entrega não identificada: registro negativo na planilha (tarefa zerada).</p>${tabelaVencidas(dificuldade, "Nenhuma entrega com dificuldade.")}
-      <h2 class="pend">! Pendentes (${pendentes.length})</h2><p class="resumo">Prazo encerrado, ainda sem registro definitivo na planilha (em análise, faltando algo ou sem registro). Ainda podem pontuar.</p>${tabelaVencidas(pendentes, "Nenhuma pendência.")}
+      <h2 class="pend">! Aguardando (${pendentes.length})</h2><p class="resumo">Prazo encerrado, ainda sem registro definitivo na planilha (em análise, faltando algo ou sem registro). Ainda podem pontuar.</p>${tabelaVencidas(pendentes, "Nenhuma atividade aguardando.")}
       <h2 class="fut">◷ Prazo futuro (${futuro.length})</h2><p class="resumo">Atividades com prazo mais adiante, organizadas por data.</p>${porData(futuro) || "<p class=\"resumo\">Não há outras entregas a vencer.</p>"}
       <p class="aviso">${hesc(D.meta.rodape)}</p></main></body></html>`;
     abrirRelatorio("relatorio_" + m.n.replace(/\s+/g, "_") + "_" + m.uf + ".html", doc);

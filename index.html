@@ -156,7 +156,7 @@ footer { max-width: 1080px; margin: 0 auto; padding-block: 0 28px; padding-left:
 
   <section class="card" id="v-geral">
     <h2 style="margin:0 0 4px;font-size:17px">Visão geral das atividades</h2>
-    <p class="nota" style="margin:0 0 12px">Todas as atividades já feitas, pendentes, com dificuldades na entrega e as das duas próximas janelas, em ordem de prazo, sem separar por área. As de prazo futuro sem nenhum dado não aparecem aqui. Clique num quadro para ver o detalhe.</p>
+    <p class="nota" style="margin:0 0 12px">Todas as atividades já feitas, aguardando, com dificuldades na entrega e as das duas próximas janelas, em ordem de prazo, sem separar por área. As de prazo futuro sem nenhum dado não aparecem aqui. Clique num quadro para ver o detalhe.</p>
     <div class="quadros" id="l-quadros"></div>
   </section>
 
@@ -178,7 +178,7 @@ footer { max-width: 1080px; margin: 0 auto; padding-block: 0 28px; padding-left:
 <script>
 fetch("dados.json?t=" + Date.now(), { cache: "no-store" })
   .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-  .then((t) => { document.getElementById("dados").textContent = t; const s = document.createElement("script"); s.src = "app.js?v=f9bf3d2e8b"; document.body.append(s); })
+  .then((t) => { document.getElementById("dados").textContent = t; const s = document.createElement("script"); s.src = "app.js?v=a80e514cdc"; document.body.append(s); })
   .catch((e) => { document.querySelector("main").innerHTML = '<section class="card"><p>Não foi possível carregar os dados do painel (' + e.message + '). Recarregue a página.</p></section>'; });
 </script>
 </body>
