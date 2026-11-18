@@ -129,7 +129,7 @@
       .resumo{font-size:13px;color:#52514e} .aviso{font-size:11px;color:#52514e;margin-top:22px} .barra{position:sticky;top:0;background:#f9f9f7;padding:8px 28px;border-bottom:1px solid #e1e0d9;z-index:1}
       .barra button{font:inherit;padding:6px 12px;border-radius:8px;border:1px solid #1cabe2;background:#fff;cursor:pointer} @media print{.barra{display:none} tr{break-inside:avoid} h3{break-after:avoid}}
       </style></head><body><div class="barra"><button onclick="print()">🖨 Imprimir / salvar em PDF</button></div>
-      <header><h1>${hesc(m.n)} (${hesc(UF_NOME[m.uf])}) — Selo UNICEF 2025-2028</h1><div class="sit">Situação na simulação: ${hesc(sitMunicipio(m))}</div><div class="m">${hesc(D.meta.aviso)} · Referência: ${hesc(D.meta.data_ref)}</div></header><main>
+      <header>${(document.querySelector(".marcas") || { outerHTML: "" }).outerHTML}<h1>${hesc(m.n)} (${hesc(UF_NOME[m.uf])}) — Selo UNICEF 2025-2028</h1><div class="sit">Situação na simulação: ${hesc(sitMunicipio(m))}</div><div class="m">${hesc(D.meta.aviso)} · Referência: ${hesc(D.meta.data_ref)}</div></header><main>
       <div class="chips">${resumo}</div>
       <h2 class="feitas">✓ Entregas feitas (${feitas.length})</h2>${feitas.length ? `<table class="feitas"><colgroup><col class="c1"><col class="c2"><col><col class="c4">${comData ? '<col class="c5">' : ""}</colgroup><thead><tr><th>Prazo</th><th>Área</th><th>Atividade</th><th>Registro</th>${comData ? "<th>Entregue em</th>" : ""}</tr></thead><tbody>${feitas.map(linhaFeita).join("")}</tbody></table>` : "<p>Nenhuma entrega registrada até agora.</p>"}
       <h2 class="prox">→ Próximas entregas (${proxJan.length})</h2><p class="resumo">Atividades das duas próximas janelas de entrega${JANELAS.length ? " (" + JANELAS.map(fmtData).join(" e ") + ")" : ""}, organizadas por data.</p>${porData(proxJan) || "<p class=\"resumo\">Não há entregas nas próximas janelas.</p>"}
@@ -302,6 +302,39 @@
   $("f-mun").addEventListener("change", (e) => irPara(e.target.value));
   function irPara(c) { estado.cod = c; try { history.replaceState(null, "", "#m" + c); } catch (e) {} render(); }
 
+  // ---------- Quadros da visão geral ----------
+  function quadro(m, i, r) {
+    const e = D.entregas[i], d = e.iso ? dias(e.iso) : null;
+    const quando = d == null ? "" : d < 0 ? "prazo encerrado" : d === 0 ? "vence hoje" : "faltam " + d + " dias";
+    const q = el("button", { type: "button", class: "quadro", style: `--cor:var(--c-${r.cor})`, "aria-expanded": "false" },
+      el("span", { class: "q-st" }, bolinha(r.cor), COR[r.cor].nome),
+      el("span", { class: "q-nome" }, e.nome),
+      r.rot || r.obs ? el("span", { class: "q-rot" }, [r.rot ? "“" + r.rot + "”" : "", r.obs].filter(Boolean).join(" · ")) : null,
+      el("span", { class: "q-pe" }, el("span", { class: "q-area" }, e.area), el("span", { class: "q-prazo" }, fmtData(e.iso), el("small", null, quando))));
+    q.onclick = () => {
+      const lq = $("l-quadros"), aberto = lq.querySelector(".quadro-det");
+      const eraEste = aberto && aberto.dataset.i === String(i);
+      if (aberto) { aberto.remove(); lq.querySelectorAll(".quadro[aria-expanded=true]").forEach((x) => x.setAttribute("aria-expanded", "false")); }
+      if (eraEste) return;
+      // o detalhe entra logo depois da linha do quadro clicado
+      const qs = [...lq.querySelectorAll(".quadro")], topo = q.offsetTop;
+      let ult = q; for (const x of qs) if (x.offsetTop === topo) ult = x;
+      const det = el("div", { class: "quadro-det", style: `--cor:var(--c-${r.cor})`, "data-i": String(i) }, detalhe(m, e, r));
+      ult.after(det); q.setAttribute("aria-expanded", "true");
+    };
+    return q;
+  }
+
+  // ---------- Abas: visão geral (padrão) e por área ----------
+  const vista = { atual: "geral" };
+  function mostrarVista(v) {
+    vista.atual = v;
+    $("v-geral").hidden = v !== "geral"; $("v-area").hidden = v !== "area";
+    $("t-geral").setAttribute("aria-pressed", String(v === "geral")); $("t-area").setAttribute("aria-pressed", String(v === "area"));
+  }
+  $("t-geral").onclick = () => mostrarVista("geral");
+  $("t-area").onclick = () => mostrarVista("area");
+
   // ---------- Desenho ----------
   function render() {
     const m = D.mun[estado.cod];
@@ -311,6 +344,13 @@
     const cont = {}; for (const r of regs) cont[r.cor] = (cont[r.cor] || 0) + 1;
     const lg = $("m-legenda"); lg.textContent = "";
     for (const c of ORDEM) lg.append(el("div", { class: "leg", style: `--cor:var(--c-${c})` }, el("div", { class: "n" }, cont[c] || 0), el("div", { class: "t" }, COR[c].nome), el("div", { class: "d" }, COR[c].d)));
+
+    // Visão geral: um quadro por atividade, na cor da situação, em ordem de prazo; sem as de prazo futuro sem dado
+    const lq = $("l-quadros"); lq.textContent = "";
+    const naGeral = D.entregas.map((e, i) => i).filter((i) => regs[i].cor !== "cinza")
+      .sort((a, b) => (D.entregas[a].iso || "9999").localeCompare(D.entregas[b].iso || "9999") || a - b);
+    for (const i of naGeral) lq.append(quadro(m, i, regs[i]));
+    if (!naGeral.length) lq.append(el("div", { class: "nota" }, "Nenhuma atividade com dado ou nas próximas janelas."));
 
     const lp = $("l-proximas"); lp.textContent = "";
     $("n-proximas").textContent = JANELAS.length ? "Atividades que vencem nas duas próximas datas de entrega, organizadas por data. Em azul-claro, as que ainda não têm nenhum dado; a janela avança sozinha quando um prazo passa." : "Não há entregas a vencer.";
