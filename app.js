@@ -48,7 +48,8 @@
     if (st === "ok" || st === "parcial") return { cor: "verde", rot: t, pts, data: r[1], obs: st === "parcial" ? "entregue com atraso (1 ponto)" : "" };
     if (!vencida) return { cor: "azul", rot: t, data: r[1], obs: "" };          // movimentação antes do prazo (inclusive registro negativo)
     if (st === "zero") return { cor: "vermelho", rot: t, pts: 0, data: r[1], obs: "" };
-    return { cor: "amarelo", rot: t, data: r[1], obs: "em análise" };
+    // justificativa da sinalização: "aguardando definição" para as de espera (Aguardando validação/aprovação/informação…), gestor 18/11/2026
+    return { cor: "amarelo", rot: t, data: r[1], obs: D.rotulos[r[0]][3] === "AGUARDANDO_DEFINICAO" ? "aguardando definição" : "em análise" };
   }
   const bolinha = (cor) => el("span", { class: "ic", style: `background:var(--c-${cor})`, "aria-hidden": "true" }, COR[cor].ic);
 
@@ -58,7 +59,7 @@
   function linhaEntrega(m, i, comArea) {
     const e = D.entregas[i], r = registro(m, i), d = e.iso ? dias(e.iso) : null;
     const quando = d == null ? "" : d < 0 ? "prazo encerrado" : d === 0 ? "vence hoje" : "faltam " + d + " dias";
-    const sub = [r.rot ? "“" + r.rot + "”" : "", r.obs, r.data ? "entregue em " + r.data : ""].filter(Boolean).join(" · ");
+    const sub = [r.rot ? "“" + r.rot + "”" : "", r.obs, r.data ? (/^\d{2}\/\d{2}\/\d{4}$/.test(r.data) ? "entregue em " + r.data : r.data.toLowerCase()) : ""].filter(Boolean).join(" · ");
     const det = el("details", { class: "ent", style: `--cor:var(--c-${r.cor})` },
       el("summary", null,
         el("span", { class: "st" }, bolinha(r.cor), COR[r.cor].nome),
@@ -79,7 +80,7 @@
       el("dt", null, "Situação"), el("dd", null, COR[r.cor].nome + (r.obs ? " (" + r.obs + ")" : "")),
       r.rot ? el("dt", null, "Registro na planilha") : null, r.rot ? el("dd", null, "“" + r.rot + "”") : null,
       r.pts != null ? el("dt", null, "Pontos") : null, r.pts != null ? el("dd", null, String(r.pts)) : null,
-      r.data ? el("dt", null, "Entregue em") : null, r.data ? el("dd", null, r.data) : null,
+      r.data ? el("dt", null, /^\d{2}\/\d{2}\/\d{4}$/.test(r.data) ? "Entregue em" : "Data de entrega") : null, r.data ? el("dd", null, r.data) : null,
       el("dt", null, "Dados do dia"), el("dd", null, dd ? fmtData(dd) : "sem data de extração na planilha"),
       el("dt", null, "Prazo"), el("dd", null, el("strong", null, fmtData(e.iso))));
     return el("div", { class: "detalhe" },
@@ -97,20 +98,21 @@
     const feitas = idx.filter((i) => regs[i].cor === "verde").sort((a, b) => (ent(a).iso || "9").localeCompare(ent(b).iso || "9"));
     const pendentes = idx.filter((i) => regs[i].cor === "amarelo").sort((a, b) => (ent(a).iso || "9").localeCompare(ent(b).iso || "9"));
     const dificuldade = idx.filter((i) => regs[i].cor === "vermelho").sort((a, b) => (ent(a).iso || "9").localeCompare(ent(b).iso || "9"));
-    const linhaVencida = (i) => { const r = regs[i]; return `<tr style="--c:${COR_HEX[r.cor]}"><td class="data">${hesc(fmtData(ent(i).iso))}</td><td>${area(ent(i).area)}</td><td>${hesc(ent(i).nome)}</td><td>${pilula(r.cor, r.rot || COR[r.cor].nome)}${r.obs ? `<div class="obs">${hesc(r.obs)}</div>` : ""}</td></tr>`; };
-    const tabelaVencidas = (lista, vazio) => lista.length ? `<table class="feitas"><colgroup><col class="c1"><col class="c2"><col><col class="c4"></colgroup><thead><tr><th>Prazo</th><th>Área</th><th>Atividade</th><th>Registro</th></tr></thead><tbody>${lista.map(linhaVencida).join("")}</tbody></table>` : `<p class="resumo">${vazio}</p>`;
+    const dadoDoDia = (i) => { const r = m.e[i], d = r !== -1 && r[2] ? r[2] : ((D.dados_do_dia[m.uf] || {})[D.entregas[i].id] ? fmtData((D.dados_do_dia[m.uf] || {})[D.entregas[i].id]) : ""); return d || "—"; };
+    const linhaVencida = (i) => { const r = regs[i]; return `<tr style="--c:${COR_HEX[r.cor]}"><td class="data">${hesc(fmtData(ent(i).iso))}</td><td class="dd">${hesc(dadoDoDia(i))}</td><td>${area(ent(i).area)}</td><td>${hesc(ent(i).nome)}</td><td>${pilula(r.cor, r.rot || COR[r.cor].nome)}${r.obs ? `<div class="obs">${hesc(r.obs)}</div>` : ""}</td></tr>`; };
+    const tabelaVencidas = (lista, vazio) => lista.length ? `<table class="feitas"><colgroup><col class="c1"><col class="cdd"><col class="c2"><col><col class="c4"></colgroup><thead><tr><th>Prazo</th><th>Dados do dia</th><th>Área</th><th>Atividade</th><th>Registro</th></tr></thead><tbody>${lista.map(linhaVencida).join("")}</tbody></table>` : `<p class="resumo">${vazio}</p>`;
     const proximas = idx.filter((i) => regs[i].cor !== "verde" && ent(i).iso && ent(i).iso >= HOJE).sort((a, b) => ent(a).iso.localeCompare(ent(b).iso) || a - b);
     const area = (id) => { const c = (AREAS[id] || {}).cor || "#898781"; return `<span class="area" style="border-color:${c};background:${c}1f"><i style="background:${c}"></i>${hesc(id)}</span>`; };
     const pilula = (cor, txt) => `<span class="pil" style="background:${COR_HEX[cor]}${cor === "azulclaro" || cor === "cinza" ? "" : "26"};border-color:${COR_HEX[cor]}"><b style="background:${COR_HEX[cor]}">${COR[cor].ic}</b>${hesc(txt)}</span>`;
     const comData = RELATORIO_COM_DATA_ENTREGA && feitas.some((i) => regs[i].data);
-    const linhaFeita = (i) => `<tr style="--c:${COR_HEX.verde}"><td class="data">${hesc(fmtData(ent(i).iso))}</td><td>${area(ent(i).area)}</td><td>${hesc(ent(i).nome)}</td><td>${pilula("verde", regs[i].rot || "Entregue")}${regs[i].obs ? `<div class="obs">${hesc(regs[i].obs)}</div>` : ""}</td>${comData ? `<td>${hesc(regs[i].data || "—")}</td>` : ""}</tr>`;
+    const linhaFeita = (i) => `<tr style="--c:${COR_HEX.verde}"><td class="data">${hesc(fmtData(ent(i).iso))}</td><td class="dd">${hesc(dadoDoDia(i))}</td><td>${area(ent(i).area)}</td><td>${hesc(ent(i).nome)}</td><td>${pilula("verde", regs[i].rot || "Entregue")}${regs[i].obs ? `<div class="obs">${hesc(regs[i].obs)}</div>` : ""}</td>${comData ? `<td>${hesc(regs[i].data || "—")}</td>` : ""}</tr>`;
     const porData = (lista) => { let blocos = "", ult = null;
     for (const i of lista) {
       const iso = ent(i).iso, jan = JANELAS.includes(iso);
       if (iso !== ult) { if (ult) blocos += "</tbody></table>"; ult = iso; const d = dias(iso);
-        blocos += `<h3 class="${jan ? "janela" : ""}"><span class="dt">Até ${hesc(fmtData(iso))}</span><span class="dias">${d === 0 ? "vence hoje" : "faltam " + d + " dias"}</span>${jan ? '<span class="tagj">próxima janela</span>' : ""}</h3><table class="prox"><colgroup><col class="c2"><col><col class="c3"></colgroup><thead><tr><th>Área</th><th>Atividade</th><th>Situação</th></tr></thead><tbody>`; }
+        blocos += `<h3 class="${jan ? "janela" : ""}"><span class="dt">Até ${hesc(fmtData(iso))}</span><span class="dias">${d === 0 ? "vence hoje" : "faltam " + d + " dias"}</span>${jan ? '<span class="tagj">próxima janela</span>' : ""}</h3><table class="prox"><colgroup><col class="cdd"><col class="c2"><col><col class="c3"></colgroup><thead><tr><th>Dados do dia</th><th>Área</th><th>Atividade</th><th>Situação</th></tr></thead><tbody>`; }
       const r = regs[i];
-      blocos += `<tr style="--c:${COR_HEX[r.cor]}"><td>${area(ent(i).area)}</td><td>${hesc(ent(i).nome)}</td><td>${pilula(r.cor, COR[r.cor].nome)}${r.rot ? `<div class="obs">“${hesc(r.rot)}”</div>` : ""}</td></tr>`;
+      blocos += `<tr style="--c:${COR_HEX[r.cor]}"><td class="dd">${hesc(dadoDoDia(i))}</td><td>${area(ent(i).area)}</td><td>${hesc(ent(i).nome)}</td><td>${pilula(r.cor, COR[r.cor].nome)}${r.rot ? `<div class="obs">“${hesc(r.rot)}”</div>` : ""}</td></tr>`;
     }
     if (ult) blocos += "</tbody></table>"; return blocos; };
     const proxJan = proximas.filter((i) => JANELAS.includes(ent(i).iso)), futuro = proximas.filter((i) => !JANELAS.includes(ent(i).iso));
@@ -123,7 +125,7 @@
       h2{font-size:18px;margin:24px 0 8px;padding:6px 12px;border-radius:8px} h2.feitas{background:#0ca30c1f;border-left:5px solid #0ca30c} h2.prox{background:#4a90e21f;border-left:5px solid #4a90e2} h2.pend{background:#fab2192e;border-left:5px solid #fab219} h2.dif{background:#d03b3b1f;border-left:5px solid #d03b3b} h2.fut{background:#c3c2b733;border-left:5px solid #a8a79f}
       h3{display:flex;align-items:center;gap:10px;font-size:14px;margin:16px 0 4px} h3 .dias{font-weight:500;color:#52514e;font-size:12px;background:#f2f1ed;border-radius:999px;padding:1px 9px} h3.janela .dt{color:#0f739a} .tagj{font-size:11px;font-weight:700;background:#a9dcf7;color:#054963;border-radius:999px;padding:1px 9px}
       table{border-collapse:collapse;width:100%;font-size:12.5px;table-layout:fixed} th,td{text-align:left;padding:6px 7px;border-bottom:1px solid #e1e0d9;vertical-align:top} th{color:#52514e;font-size:11.5px;background:#f9f9f7} tbody tr td:first-child{box-shadow:inset 4px 0 0 var(--c)}
-      table.feitas col.c1{width:90px} table.feitas col.c2,table.prox col.c2{width:86px} table.feitas col.c4{width:190px} table.feitas col.c5{width:92px} table.prox col.c3{width:220px} td.data{font-variant-numeric:tabular-nums;font-weight:600}
+      table.feitas col.c1{width:90px} col.cdd{width:92px} td.dd{font-variant-numeric:tabular-nums;color:#52514e;font-size:12px} table.feitas col.c2,table.prox col.c2{width:86px} table.feitas col.c4{width:190px} table.feitas col.c5{width:92px} table.prox col.c3{width:220px} td.data{font-variant-numeric:tabular-nums;font-weight:600}
       .area{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;border:1px solid;border-radius:5px;padding:1px 6px;white-space:nowrap} .area i{width:8px;height:8px;border-radius:2px;display:inline-block}
       .pil{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border:1px solid;border-radius:999px;padding:1px 9px 1px 2px} .pil b{width:17px;height:17px;border-radius:50%;color:#0b0b0b;display:inline-flex;align-items:center;justify-content:center;font-size:10px} .obs{font-size:11.5px;color:#52514e;margin-top:3px}
       .resumo{font-size:13px;color:#52514e} .aviso{font-size:11px;color:#52514e;margin-top:22px} .barra{position:sticky;top:0;background:#f9f9f7;padding:8px 28px;border-bottom:1px solid #e1e0d9;z-index:1}
@@ -131,10 +133,10 @@
       </style></head><body><div class="barra"><button onclick="print()">🖨 Imprimir / salvar em PDF</button></div>
       <header>${(document.querySelector(".marcas") || { outerHTML: "" }).outerHTML}<h1>${hesc(m.n)} (${hesc(UF_NOME[m.uf])}) — Selo UNICEF 2025-2028</h1><div class="sit">Situação na simulação: ${hesc(sitMunicipio(m))}</div><div class="m">${hesc(D.meta.aviso)} · Referência: ${hesc(D.meta.data_ref)}</div></header><main>
       <div class="chips">${resumo}</div>
-      <h2 class="feitas">✓ Entregas feitas (${feitas.length})</h2>${feitas.length ? `<table class="feitas"><colgroup><col class="c1"><col class="c2"><col><col class="c4">${comData ? '<col class="c5">' : ""}</colgroup><thead><tr><th>Prazo</th><th>Área</th><th>Atividade</th><th>Registro</th>${comData ? "<th>Entregue em</th>" : ""}</tr></thead><tbody>${feitas.map(linhaFeita).join("")}</tbody></table>` : "<p>Nenhuma entrega registrada até agora.</p>"}
+      <h2 class="feitas">✓ Entregas feitas (${feitas.length})</h2>${feitas.length ? `<table class="feitas"><colgroup><col class="c1"><col class="cdd"><col class="c2"><col><col class="c4">${comData ? '<col class="c5">' : ""}</colgroup><thead><tr><th>Prazo</th><th>Dados do dia</th><th>Área</th><th>Atividade</th><th>Registro</th>${comData ? "<th>Entregue em</th>" : ""}</tr></thead><tbody>${feitas.map(linhaFeita).join("")}</tbody></table>` : "<p>Nenhuma entrega registrada até agora.</p>"}
       <h2 class="prox">→ Próximas entregas (${proxJan.length})</h2><p class="resumo">Atividades das duas próximas janelas de entrega${JANELAS.length ? " (" + JANELAS.map(fmtData).join(" e ") + ")" : ""}, organizadas por data.</p>${porData(proxJan) || "<p class=\"resumo\">Não há entregas nas próximas janelas.</p>"}
       <h2 class="dif">✕ Dificuldades na entrega (${dificuldade.length})</h2><p class="resumo">Prazo encerrado e entrega não identificada: registro negativo na planilha (tarefa zerada).</p>${tabelaVencidas(dificuldade, "Nenhuma entrega com dificuldade.")}
-      <h2 class="pend">! Aguardando (${pendentes.length})</h2><p class="resumo">Prazo encerrado, ainda sem registro definitivo na planilha (em análise, faltando algo ou sem registro). Ainda podem pontuar.</p>${tabelaVencidas(pendentes, "Nenhuma atividade aguardando.")}
+      <h2 class="pend">! Aguardando (${pendentes.length})</h2><p class="resumo">Prazo encerrado, ainda sem registro definitivo na planilha (aguardando definição, em análise, faltando algo ou sem registro). Ainda podem pontuar.</p>${tabelaVencidas(pendentes, "Nenhuma atividade aguardando.")}
       <h2 class="fut">◷ Prazo futuro (${futuro.length})</h2><p class="resumo">Atividades com prazo mais adiante, organizadas por data.</p>${porData(futuro) || "<p class=\"resumo\">Não há outras entregas a vencer.</p>"}
       <p class="aviso">${hesc(D.meta.rodape)}</p></main></body></html>`;
     abrirRelatorio("relatorio_" + m.n.replace(/\s+/g, "_") + "_" + m.uf + ".html", doc);
